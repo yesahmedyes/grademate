@@ -1,0 +1,163 @@
+- generic [ref=f4e1]:
+  - generic [ref=f4e2]:
+    - complementary [ref=f4e3]:
+      - link "GradeMate home" [ref=f4e4] [cursor=pointer]:
+        - /url: /dashboard
+        - generic [ref=f4e5]: G
+      - navigation [ref=f4e6]:
+        - link "Your classes" [ref=f4e7] [cursor=pointer]:
+          - /url: /dashboard
+      - button "Sign out" [ref=f4e30] [cursor=pointer]
+    - main [ref=f4e35]:
+      - generic [ref=f4e36]:
+        - searchbox [ref=f4e41]
+        - navigation [ref=f4e42]:
+          - link "My classes" [ref=f4e43] [cursor=pointer]:
+            - /url: /dashboard
+          - generic [ref=f4e44]: Help
+          - generic [ref=f4e47]: DT
+      - generic [ref=f4e49]:
+        - link "Assignment 4 — Integration" [ref=f4e50] [cursor=pointer]:
+          - /url: /classes/c1/work/w1
+        - heading "Grade All" [level=1] [ref=f4e53]
+        - generic [ref=f4e54]:
+          - generic [ref=f4e56]:
+            - button "Assignment" [ref=f4e99] [cursor=pointer]
+            - button "Marking Scheme" [ref=f4e63] [cursor=pointer]
+            - button "3 Grades" [ref=f4e70] [cursor=pointer]:
+              - generic [ref=f4e71]: "3"
+              - generic [ref=f4e72]: Grades
+          - generic [ref=f4e102]:
+            - generic [ref=f4e103]:
+              - generic [ref=f4e104]:
+                - heading "Start grading" [level=3] [ref=f4e105]
+                - paragraph [ref=f4e106]: Each selected submission is fetched, read into text and diagrams, then graded by AI against your marking scheme.
+                - generic [ref=f4e107]:
+                  - button "Turned in · 6" [ref=f4e108] [cursor=pointer]
+                  - button "Returned · 1" [ref=f4e109] [cursor=pointer]
+                  - button "Assigned · 2" [ref=f4e110] [cursor=pointer]
+                  - button "Not started · 1" [ref=f4e111] [cursor=pointer]
+                  - generic [ref=f4e112] [cursor=pointer]:
+                    - checkbox "re-grade already graded" [ref=f4e113]
+                    - text: re-grade already graded
+              - button "Stop" [active] [ref=f4e118] [cursor=pointer]
+            - generic [ref=f4e121]:
+              - generic [ref=f4e122]:
+                - generic [ref=f4e123]:
+                  - paragraph [ref=f4e124]: 02:12:51Starting grading run…
+                  - paragraph [ref=f4e125]: 02:12:53Found 6 submission(s) in selected state (TURNED_IN).
+                  - paragraph [ref=f4e126]: 02:12:53Grading 2 of 6 remaining, 5 at a time…
+                  - paragraph [ref=f4e127]: 02:12:53⚠ AI credentials not configured — using demo grades.
+                  - paragraph [ref=f4e128]: 02:12:54⬇ Fetching Ayesha Khan's submission…
+                  - paragraph [ref=f4e129]: 02:12:54⬇ Fetching Bilal Ahmed's submission…
+                  - paragraph [ref=f4e130]: "02:12:54✓ Bilal Ahmed: 9/10"
+                  - paragraph [ref=f4e131]: "02:12:54✓ Ayesha Khan: 6/10"
+                  - paragraph [ref=f4e132]: 02:12:55… 4 submission(s) still to grade.
+                  - paragraph [ref=f4e133]: 02:12:56Grading 2 of 4 remaining, 5 at a time…
+                  - paragraph [ref=f4e134]: 02:12:56⚠ AI credentials not configured — using demo grades.
+                  - paragraph [ref=f4e135]: 02:12:56⬇ Fetching Daniyal Raza's submission…
+                  - paragraph [ref=f4e136]: 02:12:56⬇ Fetching Chen Wei's submission…
+                  - paragraph [ref=f4e137]: "02:12:57✓ Daniyal Raza: 5.5/10"
+                  - paragraph [ref=f4e138]: "02:12:57✓ Chen Wei: 5.5/10"
+                  - paragraph [ref=f4e139]: ▋
+                - generic [ref=f4e140]:
+                  - heading "Class overview" [level=4] [ref=f4e141]
+                  - generic [ref=f4e142]:
+                    - generic [ref=f4e143]: Average 6.5
+                    - generic [ref=f4e144]: Median 5.8
+                    - generic [ref=f4e145]: High 9
+                    - generic [ref=f4e146]: Low 5.5
+                  - generic [ref=f4e147]:
+                    - generic [ref=f4e148]:
+                      - generic [ref=f4e149]: 90–100%
+                      - generic [ref=f4e152]: "1"
+                    - generic [ref=f4e153]:
+                      - generic [ref=f4e154]: 80–89%
+                      - generic [ref=f4e156]: "0"
+                    - generic [ref=f4e157]:
+                      - generic [ref=f4e158]: 70–79%
+                      - generic [ref=f4e160]: "0"
+                    - generic [ref=f4e161]:
+                      - generic [ref=f4e162]: 60–69%
+                      - generic [ref=f4e165]: "1"
+                    - generic [ref=f4e166]:
+                      - generic [ref=f4e167]: < 60%
+                      - generic [ref=f4e170]: "2"
+              - generic [ref=f4e171]:
+                - generic [ref=f4e172]:
+                  - generic [ref=f4e173]:
+                    - generic [ref=f4e174]: AK
+                    - generic [ref=f4e175]:
+                      - paragraph [ref=f4e176]: Ayesha Khan
+                      - paragraph [ref=f4e177]: ayesha@school.edu
+                    - generic [ref=f4e178]: 6/10
+                  - generic [ref=f4e179]:
+                    - generic [ref=f4e180]:
+                      - generic "Mostly correct answers." [ref=f4e181]: Correctness
+                      - generic [ref=f4e184]: 3/5
+                    - generic [ref=f4e185]:
+                      - generic "Steps are shown for most questions." [ref=f4e186]: Working shown
+                      - generic [ref=f4e189]: 2/3
+                    - generic [ref=f4e190]:
+                      - generic "Legible and organized." [ref=f4e191]: Notation & clarity
+                      - generic [ref=f4e194]: 1/2
+                  - button "Feedback" [ref=f4e196] [cursor=pointer]
+                - generic [ref=f4e199]:
+                  - generic [ref=f4e200]:
+                    - generic [ref=f4e201]: BA
+                    - generic [ref=f4e202]:
+                      - paragraph [ref=f4e203]: Bilal Ahmed
+                      - paragraph [ref=f4e204]: bilal@school.edu
+                    - generic [ref=f4e205]: 9/10
+                  - generic [ref=f4e206]:
+                    - generic [ref=f4e207]:
+                      - generic "Mostly correct answers." [ref=f4e208]: Correctness
+                      - generic [ref=f4e211]: 4.5/5
+                    - generic [ref=f4e212]:
+                      - generic "Steps are shown for most questions." [ref=f4e213]: Working shown
+                      - generic [ref=f4e216]: 2.5/3
+                    - generic [ref=f4e217]:
+                      - generic "Legible and organized." [ref=f4e218]: Notation & clarity
+                      - generic [ref=f4e221]: 2/2
+                  - button "Feedback" [ref=f4e223] [cursor=pointer]
+                - generic [ref=f4e226]:
+                  - generic [ref=f4e227]:
+                    - generic [ref=f4e228]: CW
+                    - generic [ref=f4e229]:
+                      - paragraph [ref=f4e230]: Chen Wei
+                      - paragraph [ref=f4e231]: chen@school.edu
+                    - generic [ref=f4e232]: 5.5/10
+                  - generic [ref=f4e233]:
+                    - generic [ref=f4e234]:
+                      - generic "Mostly correct answers." [ref=f4e235]: Correctness
+                      - generic [ref=f4e238]: 3/5
+                    - generic [ref=f4e239]:
+                      - generic "Steps are shown for most questions." [ref=f4e240]: Working shown
+                      - generic [ref=f4e243]: 1.5/3
+                    - generic [ref=f4e244]:
+                      - generic "Legible and organized." [ref=f4e245]: Notation & clarity
+                      - generic [ref=f4e248]: 1/2
+                  - button "Feedback" [ref=f4e250] [cursor=pointer]
+                - generic [ref=f4e253]:
+                  - generic [ref=f4e254]:
+                    - generic [ref=f4e255]: DR
+                    - generic [ref=f4e256]:
+                      - paragraph [ref=f4e257]: Daniyal Raza
+                      - paragraph [ref=f4e258]: daniyal@school.edu
+                    - generic [ref=f4e259]: 5.5/10
+                  - generic [ref=f4e260]:
+                    - generic [ref=f4e261]:
+                      - generic "Mostly correct answers." [ref=f4e262]: Correctness
+                      - generic [ref=f4e265]: 3/5
+                    - generic [ref=f4e266]:
+                      - generic "Steps are shown for most questions." [ref=f4e267]: Working shown
+                      - generic [ref=f4e270]: 1.5/3
+                    - generic [ref=f4e271]:
+                      - generic "Legible and organized." [ref=f4e272]: Notation & clarity
+                      - generic [ref=f4e275]: 1/2
+                  - button "Feedback" [ref=f4e277] [cursor=pointer]
+          - generic [ref=f4e86]:
+            - button "← Back" [ref=f4e117] [cursor=pointer]
+            - paragraph [ref=f4e87]: Calculus & Analytical Geometry · Assignment 4 — Integration
+  - button "Open Next.js Dev Tools" [ref=f4e94] [cursor=pointer]
+  - alert [ref=f4e98]

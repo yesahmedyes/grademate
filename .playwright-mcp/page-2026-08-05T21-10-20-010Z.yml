@@ -1,0 +1,61 @@
+- generic [ref=f3e2]:
+  - complementary [ref=f3e3]:
+    - link "GradeMate home" [ref=f3e4] [cursor=pointer]:
+      - /url: /dashboard
+      - generic [ref=f3e5]: G
+    - navigation [ref=f3e6]:
+      - link "Your classes" [ref=f3e7] [cursor=pointer]:
+        - /url: /dashboard
+    - button "Sign out" [ref=f3e30] [cursor=pointer]
+  - main [ref=f3e35]:
+    - generic [ref=f3e36]:
+      - searchbox [ref=f3e41]
+      - navigation [ref=f3e42]:
+        - link "My classes" [ref=f3e43] [cursor=pointer]:
+          - /url: /dashboard
+        - generic [ref=f3e44]: Help
+        - generic [ref=f3e47]: DT
+    - generic [ref=f3e49]:
+      - paragraph [ref=f3e50]: Hello, Demo 👋
+      - heading "Your Classes" [level=1] [ref=f3e51]
+      - generic [ref=f3e52]:
+        - link "Calculus & Analytical Geometry BSAI — Fall 2026 AK BA CW DR +6" [ref=f3e53] [cursor=pointer]:
+          - /url: /classes/c1
+          - heading "Calculus & Analytical Geometry" [level=3] [ref=f3e57]
+          - paragraph [ref=f3e58]: BSAI — Fall 2026
+          - generic [ref=f3e60]:
+            - generic [ref=f3e61]: AK
+            - generic [ref=f3e62]: BA
+            - generic [ref=f3e63]: CW
+            - generic [ref=f3e64]: DR
+            - generic [ref=f3e65]: "+6"
+        - 'link "Physics I: Mechanics Section B AK BA CW DR +6" [ref=f3e69] [cursor=pointer]':
+          - /url: /classes/c2
+          - 'heading "Physics I: Mechanics" [level=3] [ref=f3e73]'
+          - paragraph [ref=f3e74]: Section B
+          - generic [ref=f3e76]:
+            - generic [ref=f3e77]: AK
+            - generic [ref=f3e78]: BA
+            - generic [ref=f3e79]: CW
+            - generic [ref=f3e80]: DR
+            - generic [ref=f3e81]: "+6"
+        - link "Intro to Computer Science CS-101 AK BA CW DR +6" [ref=f3e85] [cursor=pointer]:
+          - /url: /classes/c3
+          - heading "Intro to Computer Science" [level=3] [ref=f3e89]
+          - paragraph [ref=f3e90]: CS-101
+          - generic [ref=f3e92]:
+            - generic [ref=f3e93]: AK
+            - generic [ref=f3e94]: BA
+            - generic [ref=f3e95]: CW
+            - generic [ref=f3e96]: DR
+            - generic [ref=f3e97]: "+6"
+        - link "Linear Algebra Section A AK BA CW DR +6" [ref=f3e101] [cursor=pointer]:
+          - /url: /classes/c4
+          - heading "Linear Algebra" [level=3] [ref=f3e105]
+          - paragraph [ref=f3e106]: Section A
+          - generic [ref=f3e108]:
+            - generic [ref=f3e109]: AK
+            - generic [ref=f3e110]: BA
+            - generic [ref=f3e111]: CW
+            - generic [ref=f3e112]: DR
+            - generic [ref=f3e113]: "+6"

@@ -1,0 +1,47 @@
+- generic [ref=f4e1]:
+  - generic [ref=f4e2]:
+    - complementary [ref=f4e3]:
+      - link "GradeMate home" [ref=f4e4] [cursor=pointer]:
+        - /url: /dashboard
+        - generic [ref=f4e5]: G
+      - navigation [ref=f4e6]:
+        - link "Your classes" [ref=f4e7] [cursor=pointer]:
+          - /url: /dashboard
+      - button "Sign out" [ref=f4e30] [cursor=pointer]
+    - main [ref=f4e35]:
+      - generic [ref=f4e36]:
+        - searchbox [ref=f4e41]
+        - navigation [ref=f4e42]:
+          - link "My classes" [ref=f4e43] [cursor=pointer]:
+            - /url: /dashboard
+          - generic [ref=f4e44]: Help
+          - generic [ref=f4e47]: DT
+      - generic [ref=f4e49]:
+        - link "Assignment 4 — Integration" [ref=f4e50] [cursor=pointer]:
+          - /url: /classes/c1/work/w1
+        - heading "Grade All" [level=1] [ref=f4e53]
+        - generic [ref=f4e54]:
+          - generic [ref=f4e56]:
+            - button "Assignment" [ref=f4e99] [cursor=pointer]
+            - button "Marking Scheme" [ref=f4e63] [cursor=pointer]
+            - button "3 Grades" [active] [ref=f4e70] [cursor=pointer]:
+              - generic [ref=f4e71]: "3"
+              - generic [ref=f4e72]: Grades
+          - generic [ref=f4e103]:
+            - generic [ref=f4e104]:
+              - heading "Start grading" [level=3] [ref=f4e105]
+              - paragraph [ref=f4e106]: Each selected submission is fetched, read into text and diagrams, then graded by AI against your marking scheme.
+              - generic [ref=f4e107]:
+                - button "Turned in · 6" [ref=f4e108] [cursor=pointer]
+                - button "Returned · 1" [ref=f4e109] [cursor=pointer]
+                - button "Assigned · 2" [ref=f4e110] [cursor=pointer]
+                - button "Not started · 1" [ref=f4e111] [cursor=pointer]
+                - generic [ref=f4e112] [cursor=pointer]:
+                  - checkbox "re-grade already graded" [ref=f4e113]
+                  - text: re-grade already graded
+            - button "Start Grading" [ref=f4e114] [cursor=pointer]
+          - generic [ref=f4e86]:
+            - button "← Back" [ref=f4e117] [cursor=pointer]
+            - paragraph [ref=f4e87]: Calculus & Analytical Geometry · Assignment 4 — Integration
+  - button "Open Next.js Dev Tools" [ref=f4e94] [cursor=pointer]
+  - alert [ref=f4e98]

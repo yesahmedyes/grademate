@@ -22,6 +22,9 @@ export type ResultDTO = {
 
 type LogLine = { message: string; ts: number };
 
+/** The `done` event closing one batch. `remaining` is what's still queued server-side. */
+type BatchDone = { graded: number; failed: number; skipped: number; remaining: number };
+
 const STATE_OPTIONS = [
   { value: "TURNED_IN", label: "Turned in" },
   { value: "RETURNED", label: "Returned" },
@@ -245,31 +248,25 @@ export function GradeStep({
     logRef.current?.scrollTo({ top: logRef.current.scrollHeight });
   }, [log]);
 
-  function handleEvent(ev: Record<string, unknown>, opts?: { summary?: boolean }) {
+  function handleEvent(ev: Record<string, unknown>) {
     if (ev.type === "log") {
       setLog((l) => [...l, { message: String(ev.message), ts: Number(ev.ts) || Date.now() }]);
     } else if (ev.type === "result") {
       const r = ev.result as ResultDTO;
       setResults((m) => new Map(m).set(r.googleUserId, r));
-    } else if (ev.type === "done") {
-      if (opts?.summary === false) return;
-      setSummary({
-        graded: Number(ev.graded) || 0,
-        failed: Number(ev.failed) || 0,
-        skipped: Number(ev.skipped) || 0,
-      });
     } else if (ev.type === "fatal") {
       setLog((l) => [...l, { message: `✗ ${ev.message}`, ts: Date.now() }]);
     }
   }
 
-  /** Read an NDJSON grading stream line-by-line, dispatching each event. */
-  async function consume(res: Response, opts?: { summary?: boolean }) {
+  /** Read an NDJSON grading stream line-by-line; resolves with the batch's `done` event. */
+  async function consume(res: Response): Promise<BatchDone | null> {
     if (!res.ok || !res.body) {
       const j = await res.json().catch(() => null);
       handleEvent({ type: "fatal", message: (j as { error?: string })?.error ?? res.statusText });
-      return;
+      return null;
     }
+    let batchDone: BatchDone | null = null;
     const reader = res.body.getReader();
     const dec = new TextDecoder();
     let buf = "";
@@ -283,10 +280,21 @@ export function GradeStep({
         buf = buf.slice(i + 1);
         if (!line) continue;
         try {
-          handleEvent(JSON.parse(line), opts);
+          const ev = JSON.parse(line) as Record<string, unknown>;
+          if (ev.type === "done") {
+            batchDone = {
+              graded: Number(ev.graded) || 0,
+              failed: Number(ev.failed) || 0,
+              skipped: Number(ev.skipped) || 0,
+              remaining: Number(ev.remaining) || 0,
+            };
+          } else {
+            handleEvent(ev);
+          }
         } catch {}
       }
     }
+    return batchDone;
   }
 
   async function start() {
@@ -295,14 +303,34 @@ export function GradeStep({
     setRunning(true);
     setSummary(null);
     setLog([{ message: "Starting grading run…", ts: Date.now() }]);
+    const total = { graded: 0, failed: 0, skipped: 0 };
     try {
-      const res = await fetch(`/api/grade/${sessionId}`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ states: selected, force }),
-        signal: controller.signal,
-      });
-      await consume(res);
+      // The route grades one batch per request and reports what's left, so a class of
+      // any size is a series of short requests instead of one long one that a
+      // serverless host would cut off. Each request picks up where the last stopped.
+      for (let batch = 0; ; batch++) {
+        const res = await fetch(`/api/grade/${sessionId}`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ states: selected, force, resume: batch > 0 }),
+          signal: controller.signal,
+        });
+        const done = await consume(res);
+        if (!done) return; // fatal — consume has already logged it
+        total.graded += done.graded;
+        total.failed += done.failed;
+        total.skipped += done.skipped;
+        if (done.remaining <= 0) break;
+        // A batch that moved nothing would otherwise loop forever.
+        if (done.graded + done.failed === 0) {
+          handleEvent({
+            type: "fatal",
+            message: `Stopped with ${done.remaining} left — nothing could be graded this round.`,
+          });
+          break;
+        }
+      }
+      setSummary(total);
     } catch (e) {
       if (controller.signal.aborted) {
         setLog((l) => [...l, { message: "■ Grading stopped. Already-graded students were saved.", ts: Date.now() }]);
@@ -332,7 +360,7 @@ export function GradeStep({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ userIds: [googleUserId], force: true }),
       });
-      await consume(res, { summary: false });
+      await consume(res);
     } catch (e) {
       handleEvent({ type: "fatal", message: e instanceof Error ? e.message : String(e) });
     } finally {

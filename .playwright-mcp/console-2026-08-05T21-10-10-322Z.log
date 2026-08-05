@@ -1,0 +1,3 @@
+[     132ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3111/_next/static/chunks/c8336_next_dist_client_48713153._.js:5956
+[    1058ms] [LOG] [Fast Refresh] done in 1027ms @ http://localhost:3111/_next/static/chunks/c8336_next_dist_client_48713153._.js:5816
+[    2226ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3111/favicon.ico:0

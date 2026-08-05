@@ -1,5 +1,5 @@
 import { after } from "next/server";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { flushLangfuse } from "@/lib/langfuse";
@@ -30,6 +30,14 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 // so they stay capped.
 const OCR_MAX_PAGES = 15;
 const MAX_FIGURES = 6;
+
+// One POST grades at most this many students and then reports how many are left,
+// so the client can come back for the next batch. Every invocation finishes well
+// inside a serverless request timeout no matter how big the class is.
+const DEFAULT_BATCH = 10;
+// Most of a submission's wall time is spent waiting on Mistral/Bedrock/Drive
+// rather than burning CPU, so several can be in flight for roughly the price of one.
+const CONCURRENCY = 5;
 
 type PerCriterion = { criterion: string; points: number; maxPoints: number; comment: string };
 type Grade = { score: number; perCriterion: PerCriterion[]; feedback: string };
@@ -108,6 +116,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ session
     force?: boolean;
     userIds?: string[];
     reOcr?: boolean;
+    limit?: number;
+    resume?: boolean;
   };
   const states =
     Array.isArray(body.states) && body.states.length ? body.states.map(String) : ["TURNED_IN"];
@@ -118,24 +128,53 @@ export async function POST(req: Request, { params }: { params: Promise<{ session
   // Discard stored transcripts and read every submission again.
   const reOcr = Boolean(body.reOcr);
   const maxPoints = gs.maxPoints ?? 100;
+  const limit =
+    Number.isFinite(body.limit) && Number(body.limit) > 0
+      ? Math.floor(Number(body.limit))
+      : DEFAULT_BATCH;
+  // Later batches of a run read the roster back out of `student_result`, so a whole
+  // class costs one round-trip to Classroom instead of one per batch. It is only a
+  // hint — a client that never sets it just re-snapshots and still grades exactly the
+  // same students, because the work list is always read from our own tables.
+  const resume = Boolean(body.resume) && only.length === 0;
 
   const api = classroomFor(userId);
-  let students, submissions;
-  try {
-    [students, submissions] = await Promise.all([
-      api.listStudents(gs.courseId),
-      api.listSubmissions(gs.courseId, gs.courseWorkId),
-    ]);
-  } catch (e) {
-    return Response.json(
-      { error: `Could not reach Google Classroom: ${e instanceof Error ? e.message : e}` },
-      { status: 502 }
-    );
+
+  // Rows to snapshot on the first request of a run; empty on a resume.
+  let snapshot: (typeof studentResults.$inferInsert)[] = [];
+  if (!resume) {
+    let students, submissions;
+    try {
+      [students, submissions] = await Promise.all([
+        api.listStudents(gs.courseId),
+        api.listSubmissions(gs.courseId, gs.courseWorkId),
+      ]);
+    } catch (e) {
+      return Response.json(
+        { error: `Could not reach Google Classroom: ${e instanceof Error ? e.message : e}` },
+        { status: 502 }
+      );
+    }
+    const byUser = new Map(students.map((s) => [s.userId, s]));
+    const targets = only.length
+      ? submissions.filter((s) => only.includes(s.userId))
+      : submissions.filter((s) => states.includes(s.state));
+    snapshot = targets.map((sub) => {
+      const student = byUser.get(sub.userId);
+      return {
+        sessionId: gs.id,
+        googleUserId: sub.userId,
+        name: student?.name ?? `Student …${sub.userId.slice(-4)}`,
+        email: student?.email ?? null,
+        photoUrl: student?.photoUrl ?? null,
+        // Comes from Classroom and never from the request body: this is the id the
+        // server hands to Drive under the teacher's own credentials.
+        driveFileId: sub.attachments.find((a) => a.driveFileId)?.driveFileId ?? null,
+        maxPoints,
+        state: "pending",
+      };
+    });
   }
-  const byUser = new Map(students.map((s) => [s.userId, s]));
-  const targets = only.length
-    ? submissions.filter((s) => only.includes(s.userId))
-    : submissions.filter((s) => states.includes(s.state));
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -149,77 +188,130 @@ export async function POST(req: Request, { params }: { params: Promise<{ session
       const log = (message: string) => send({ type: "log", message, ts: Date.now() });
 
       try {
-        await db.update(gradingSessions).set({ status: "grading" }).where(eq(gradingSessions.id, gs.id));
-        log(
-          only.length
-            ? `Re-grading ${targets.length} submission(s)…`
-            : `Found ${targets.length} submission(s) in selected state${states.length > 1 ? "s" : ""} (${states.join(", ")}).`
-        );
-        if (!aiEnabled) log("⚠ AI credentials not configured — using demo grades.");
-
-        // Built once per run from the editable /prompts templates. The user prompt
-        // carries each student's transcript, so it's rebuilt per submission below.
-        const systemPrompt = aiEnabled ? await loadPrompt("grade-system") : "";
-        if (aiEnabled && !ocrEnabled) log("⚠ OCR not configured — reading submissions as images.");
-
-        const alreadyDone = new Map(
-          gs.results.filter((r) => r.state === "done").map((r) => [r.googleUserId, r])
-        );
-        const previous = new Map(gs.results.map((r) => [r.googleUserId, r]));
-        const run = limiter(2);
         let graded = 0;
         let failed = 0;
         let skipped = 0;
 
+        // ---- Snapshot the Classroom roster into our own tables (first request only) ----
+        if (snapshot.length) {
+          const ids = snapshot.map((r) => r.googleUserId);
+          // Identity and attachment details are refreshed from Classroom; grading state
+          // deliberately is not, so a student already graded stays graded.
+          await db
+            .insert(studentResults)
+            .values(snapshot)
+            .onConflictDoUpdate({
+              target: [studentResults.sessionId, studentResults.googleUserId],
+              set: {
+                name: sql`excluded."name"`,
+                email: sql`excluded."email"`,
+                photoUrl: sql`excluded."photoUrl"`,
+                driveFileId: sql`excluded."driveFileId"`,
+                maxPoints: sql`excluded."maxPoints"`,
+              },
+            });
+          // Re-queue whatever still needs work. A row left in `grading` is one whose
+          // batch was killed mid-flight; `force` re-queues the finished ones as well.
+          await db
+            .update(studentResults)
+            .set({ state: "pending", error: null })
+            .where(
+              and(
+                eq(studentResults.sessionId, gs.id),
+                inArray(studentResults.googleUserId, ids),
+                force ? undefined : inArray(studentResults.state, ["error", "grading"])
+              )
+            );
+        }
+
+        // ---- What's left to grade. Read from our own tables either way, so a batch
+        // ---- never has to be told where the previous one stopped — it just asks.
+        let pending: StudentResult[] = [];
+        if (resume || snapshot.length) {
+          pending = await db
+            .select()
+            .from(studentResults)
+            .where(
+              and(
+                eq(studentResults.sessionId, gs.id),
+                eq(studentResults.state, "pending"),
+                // A first request stays inside the set it just snapshotted, so it can't
+                // wander into rows left pending by some earlier, abandoned run.
+                resume
+                  ? undefined
+                  : inArray(
+                      studentResults.googleUserId,
+                      snapshot.map((r) => r.googleUserId)
+                    )
+              )
+            )
+            .orderBy(studentResults.googleUserId);
+        }
+        // A named re-grade is explicit and small — run it whole rather than batching it.
+        const batch = only.length ? pending : pending.slice(0, limit);
+
+        await db.update(gradingSessions).set({ status: "grading" }).where(eq(gradingSessions.id, gs.id));
+
+        if (!resume) {
+          const inRun = new Set(snapshot.map((r) => r.googleUserId));
+          const queued = new Set(pending.map((p) => p.googleUserId));
+          // Replay the grades this run won't be touching, so the table is complete from
+          // the first batch rather than filling in only as students are reached.
+          const carried = gs.results.filter(
+            (r) => r.state === "done" && inRun.has(r.googleUserId) && !queued.has(r.googleUserId)
+          );
+          skipped = carried.length;
+          for (const r of carried) send({ type: "result", result: serialize(r) });
+          log(
+            only.length
+              ? `Re-grading ${pending.length} submission(s)…`
+              : `Found ${snapshot.length} submission(s) in selected state${states.length > 1 ? "s" : ""} (${states.join(", ")}).`
+          );
+          if (skipped) log(`↷ ${skipped} already graded — skipped (tick “re-grade” to redo).`);
+        }
+        log(
+          batch.length
+            ? `Grading ${batch.length} of ${pending.length} remaining, ${CONCURRENCY} at a time…`
+            : "Nothing left to grade."
+        );
+        if (!aiEnabled && batch.length) log("⚠ AI credentials not configured — using demo grades.");
+
+        // Built once per batch from the editable /prompts templates. The user prompt
+        // carries each student's transcript, so it's rebuilt per submission below.
+        const systemPrompt = aiEnabled && batch.length ? await loadPrompt("grade-system") : "";
+        if (aiEnabled && !ocrEnabled && batch.length)
+          log("⚠ OCR not configured — reading submissions as images.");
+
+        const run = limiter(CONCURRENCY);
+
         await Promise.all(
-          targets.map((sub) =>
+          batch.map((row) =>
             run(async () => {
               // Teacher hit Stop (client disconnected) — don't start new work;
               // anything already in-flight finishes and persists to the DB.
               if (req.signal.aborted) return;
 
-              const student = byUser.get(sub.userId);
-              const name = student?.name ?? `Student …${sub.userId.slice(-4)}`;
-
-              const prev = alreadyDone.get(sub.userId);
-              if (prev && !force) {
-                skipped++;
-                send({ type: "result", result: serialize(prev) });
-                log(`↷ ${name} is already graded — skipped (tick “re-grade” to redo).`);
-                return;
-              }
-
-              const base = {
-                name,
-                email: student?.email ?? null,
-                photoUrl: student?.photoUrl ?? null,
-                maxPoints,
-              };
+              const name = row.name;
+              const base = { name, email: row.email, photoUrl: row.photoUrl, maxPoints };
+              const where = and(
+                eq(studentResults.sessionId, gs.id),
+                eq(studentResults.googleUserId, row.googleUserId)
+              );
               try {
-                const att = sub.attachments.find((a) => a.driveFileId);
-                if (!att?.driveFileId) throw new Error("No file attached to the submission");
+                if (!row.driveFileId) throw new Error("No file attached to the submission");
 
-                await db
-                  .insert(studentResults)
-                  .values({ sessionId: gs.id, googleUserId: sub.userId, state: "grading", driveFileId: att.driveFileId, ...base })
-                  .onConflictDoUpdate({
-                    target: [studentResults.sessionId, studentResults.googleUserId],
-                    set: { state: "grading", error: null, driveFileId: att.driveFileId, ...base },
-                  });
+                await db.update(studentResults).set({ state: "grading", error: null }).where(where);
 
                 log(`⬇ Fetching ${name}'s submission…`);
-                const file = await api.downloadFile(att.driveFileId);
+                const file = await api.downloadFile(row.driveFileId);
 
                 let grade: Grade;
                 if (!aiEnabled) {
                   await sleep(450);
                   grade = cannedGradeFor(name, maxPoints);
                 } else {
-                  const where = and(
-                    eq(studentResults.sessionId, gs.id),
-                    eq(studentResults.googleUserId, sub.userId)
-                  );
-                  const stored = previous.get(sub.userId);
+                  // The row we picked up already carries the previous run's transcript.
+                  const stored = row;
 
                   // ---- 1. Read the submission into Markdown, and save it, before grading ----
                   let transcript = "";
@@ -244,7 +336,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ session
                         maxPages: OCR_MAX_PAGES,
                         trace: {
                           name: "ocr-submission",
-                          metadata: { student: name, googleUserId: sub.userId, assignment: gs.courseWorkTitle },
+                          metadata: { student: name, googleUserId: row.googleUserId, assignment: gs.courseWorkTitle },
                         },
                       });
                       // The transcript replaces the old one — drop the figures it owned.
@@ -315,7 +407,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ session
                       metadata: {
                         // name + googleUserId identify the student; email left out to keep PII out of telemetry
                         student: name,
-                        googleUserId: sub.userId,
+                        googleUserId: row.googleUserId,
                         course: gs.courseName,
                         assignment: gs.courseWorkTitle,
                         images: images.length,
@@ -341,9 +433,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ session
                     error: null,
                     gradedAt: new Date(),
                   })
-                  .where(
-                    and(eq(studentResults.sessionId, gs.id), eq(studentResults.googleUserId, sub.userId))
-                  )
+                  .where(where)
                   .returning();
                 graded++;
                 send({ type: "result", result: serialize(rec) });
@@ -353,7 +443,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ session
                 const msg = e instanceof Error ? e.message : String(e);
                 const [rec] = await db
                   .insert(studentResults)
-                  .values({ sessionId: gs.id, googleUserId: sub.userId, state: "error", error: msg, ...base })
+                  .values({ sessionId: gs.id, googleUserId: row.googleUserId, state: "error", error: msg, ...base })
                   .onConflictDoUpdate({
                     target: [studentResults.sessionId, studentResults.googleUserId],
                     set: { state: "error", error: msg },
@@ -366,8 +456,18 @@ export async function POST(req: Request, { params }: { params: Promise<{ session
           )
         );
 
-        await db.update(gradingSessions).set({ status: "done" }).where(eq(gradingSessions.id, gs.id));
-        send({ type: "done", graded, failed, skipped });
+        // Recounted rather than subtracted: a batch cut short by Stop leaves its
+        // untouched students pending, and the client needs the true number.
+        const [{ left }] = await db
+          .select({ left: sql<number>`count(*)::int` })
+          .from(studentResults)
+          .where(and(eq(studentResults.sessionId, gs.id), eq(studentResults.state, "pending")));
+        await db
+          .update(gradingSessions)
+          .set({ status: left > 0 ? "grading" : "done" })
+          .where(eq(gradingSessions.id, gs.id));
+        if (left > 0) log(`… ${left} submission(s) still to grade.`);
+        send({ type: "done", graded, failed, skipped, remaining: left });
       } catch (e) {
         send({ type: "fatal", message: e instanceof Error ? e.message : String(e) });
       } finally {

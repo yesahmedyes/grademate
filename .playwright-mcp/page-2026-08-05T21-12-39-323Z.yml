@@ -1,0 +1,45 @@
+- generic [active] [ref=f4e1]:
+  - generic [ref=f4e2]:
+    - complementary [ref=f4e3]:
+      - link "GradeMate home" [ref=f4e4] [cursor=pointer]:
+        - /url: /dashboard
+        - generic [ref=f4e5]: G
+      - navigation [ref=f4e6]:
+        - link "Your classes" [ref=f4e7] [cursor=pointer]:
+          - /url: /dashboard
+      - button "Sign out" [ref=f4e30] [cursor=pointer]
+    - main [ref=f4e35]:
+      - generic [ref=f4e36]:
+        - searchbox [ref=f4e41]
+        - navigation [ref=f4e42]:
+          - link "My classes" [ref=f4e43] [cursor=pointer]:
+            - /url: /dashboard
+          - generic [ref=f4e44]: Help
+          - generic [ref=f4e47]: DT
+      - generic [ref=f4e49]:
+        - link "Assignment 4 — Integration" [ref=f4e50] [cursor=pointer]:
+          - /url: /classes/c1/work/w1
+        - heading "Grade All" [level=1] [ref=f4e53]
+        - generic [ref=f4e54]:
+          - generic [ref=f4e56]:
+            - button "1 Assignment" [ref=f4e58] [cursor=pointer]:
+              - generic [ref=f4e59]: "1"
+              - generic [ref=f4e60]: Assignment
+            - button "Marking Scheme" [ref=f4e63] [cursor=pointer]
+            - button "3 Grades" [ref=f4e70] [cursor=pointer]:
+              - generic [ref=f4e71]: "3"
+              - generic [ref=f4e72]: Grades
+          - generic [ref=f4e74]:
+            - generic [ref=f4e75]:
+              - generic [ref=f4e76]:
+                - heading "Assignment brief" [level=3] [ref=f4e77]
+                - paragraph [ref=f4e78]: Using the file attached to this assignment in Classroom
+              - button "Replace with upload" [ref=f4e80] [cursor=pointer]
+            - iframe [ref=f4e85]:
+              
+          - generic [ref=f4e86]:
+            - button "← Back" [disabled]
+            - paragraph [ref=f4e87]: Calculus & Analytical Geometry · Assignment 4 — Integration
+            - button "Continue →" [ref=f4e88] [cursor=pointer]
+  - button "Open Next.js Dev Tools" [ref=f4e94] [cursor=pointer]
+  - alert [ref=f4e98]
