@@ -1,0 +1,70 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+@theme inline {
+  --font-sans: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
+}
+
+@theme {
+  /* inspo palette */
+  --color-cream: #f3efe7;
+  --color-panel: #f8f5ee;
+  --color-navy: #1b1f2b;
+  --color-navy-soft: #262b3a;
+  --color-ink: #23262f;
+  --color-faint: #8a8f98;
+
+  --color-coral: #f0906b;
+  --color-coral-deep: #e97c52;
+  --color-coral-soft: #fdeee6;
+  --color-sky: #8fc1ea;
+  --color-sky-soft: #e9f2fb;
+  --color-butter: #f2d488;
+  --color-butter-soft: #faf1d9;
+  --color-leaf: #9cc5a1;
+  --color-leaf-soft: #eaf3eb;
+  --color-lilac: #a9a3e0;
+  --color-lilac-soft: #efedfa;
+
+  --radius-card: 1.25rem;
+  --shadow-card: 0 1px 2px rgb(27 31 43 / 0.04), 0 8px 24px -12px rgb(27 31 43 / 0.12);
+}
+
+body {
+  @apply bg-cream text-ink font-sans antialiased;
+}
+
+/* thin scrollbars for log panes */
+.thin-scroll::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.thin-scroll::-webkit-scrollbar-thumb {
+  background: rgb(27 31 43 / 0.15);
+  border-radius: 9999px;
+}
+
+/* markdown preview tweaks */
+.md-body {
+  @apply prose prose-sm max-w-none prose-headings:font-semibold prose-headings:text-ink prose-p:text-ink/90 prose-li:text-ink/90 prose-table:text-sm;
+}
+.md-body pre {
+  @apply bg-navy text-cream rounded-xl p-4 overflow-x-auto;
+}
+.md-body :not(pre) > code {
+  @apply bg-lilac-soft text-navy px-1.5 py-0.5 rounded-md font-medium;
+  font-size: 0.85em;
+}
+.md-body :not(pre) > code::before,
+.md-body :not(pre) > code::after {
+  content: none;
+}
+.md-body .katex-display {
+  @apply overflow-x-auto overflow-y-hidden py-1;
+}
+.md-body table {
+  @apply w-full;
+}
+.md-body th {
+  @apply bg-panel;
+}

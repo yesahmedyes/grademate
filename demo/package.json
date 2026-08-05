@@ -1,0 +1,20 @@
+{
+  "name": "grademate-demo-tests",
+  "private": true,
+  "type": "module",
+  "description": "Throwaway scripts to verify GradeMate's integrations before building the app.",
+  "scripts": {
+    "bedrock": "node --env-file=../.env test-bedrock.mjs",
+    "sample": "node make-sample-pdf.mjs",
+    "pdf": "node test-pdf-to-image.mjs",
+    "grade": "node --env-file=../.env test-grade-pipeline.mjs",
+    "google": "node --env-file=../.env test-google.mjs"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "latest",
+    "googleapis": "latest",
+    "openai": "latest",
+    "pdf-to-img": "latest",
+    "pdfkit": "latest"
+  }
+}

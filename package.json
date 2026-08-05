@@ -1,0 +1,52 @@
+{
+  "name": "grademate",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "start": "next start",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "node --env-file=.env db/migrate.mjs",
+    "db:studio": "node --env-file=.env node_modules/drizzle-kit/bin.cjs studio"
+  },
+  "dependencies": {
+    "@auth/drizzle-adapter": "^1.11.0",
+    "@aws-sdk/client-s3": "^3.1104.0",
+    "@langfuse/openai": "^5.9.1",
+    "@langfuse/otel": "^5.9.1",
+    "@langfuse/tracing": "^5.9.1",
+    "@neondatabase/serverless": "^1.1.0",
+    "@opentelemetry/sdk-node": "^0.220.0",
+    "@radix-ui/react-dialog": "^1.1.4",
+    "clsx": "^2.1.1",
+    "drizzle-orm": "^0.44.0",
+    "googleapis": "^173.0.0",
+    "highlight.js": "^11.11.1",
+    "katex": "^0.16.22",
+    "lucide-react": "^0.469.0",
+    "next": "^15.5.0",
+    "next-auth": "5.0.0-beta.29",
+    "openai": "^6.48.0",
+    "pdf-to-img": "^6.2.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-markdown": "^10.1.0",
+    "rehype-highlight": "^7.0.2",
+    "rehype-katex": "^7.0.1",
+    "remark-gfm": "^4.0.0",
+    "remark-math": "^6.0.0",
+    "sharp": "^0.34.3",
+    "tailwind-merge": "^3.0.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.0",
+    "@tailwindcss/typography": "^0.5.16",
+    "@types/node": "^22.10.2",
+    "@types/react": "^19.0.2",
+    "@types/react-dom": "^19.0.2",
+    "drizzle-kit": "^0.31.0",
+    "tailwindcss": "^4.1.0",
+    "typescript": "^5.7.2"
+  }
+}

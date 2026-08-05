@@ -1,0 +1,2 @@
+ALTER TABLE "uploaded_file" ADD COLUMN "ownerId" text NOT NULL;--> statement-breakpoint
+ALTER TABLE "uploaded_file" ADD CONSTRAINT "uploaded_file_ownerId_user_id_fk" FOREIGN KEY ("ownerId") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;

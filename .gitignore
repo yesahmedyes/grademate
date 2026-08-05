@@ -1,0 +1,24 @@
+# deps / build
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# secrets — never commit
+.env
+.env.*
+
+# local data
+storage/
+dev.db*
+*.db
+*.db-*
+
+# demo artifacts (contains real downloaded student submissions)
+demo/out/
+demo/node_modules/
+
+# misc
+.DS_Store
+npm-debug.log*
