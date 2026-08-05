@@ -20,7 +20,10 @@ import { loadPrompt } from "@/lib/prompts";
 import { limiter } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 600;
+// Vercel's Hobby ceiling, and far more headroom than one batch needs: DEFAULT_BATCH
+// students at CONCURRENCY at a time is a couple of rounds. A whole class no longer
+// depends on this number — it's spread over as many requests as it takes.
+export const maxDuration = 300;
 
 const enc = new TextEncoder();
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
