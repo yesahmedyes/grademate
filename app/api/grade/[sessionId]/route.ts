@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { flushLangfuse } from "@/lib/langfuse";
 import { gradingSessions, studentResults, type StudentResult } from "@/db/schema";
-import { classroomFor } from "@/lib/classroom";
+import { classroomFor, type Submission } from "@/lib/classroom";
 import { aiEnabled, callModel, extractJson } from "@/lib/bedrock";
 import { cannedGradeFor } from "@/lib/canned";
 import {
@@ -93,6 +93,12 @@ function serialize(r: StudentResult) {
   };
 }
 
+// Classroom stamps updateTime as RFC 3339 UTC, so string order is time order.
+// Missing stamps sort oldest, which keeps the choice deterministic either way.
+function isNewer(a: Submission, b: Submission) {
+  return (a.updateTime ?? "") > (b.updateTime ?? "");
+}
+
 export async function POST(req: Request, { params }: { params: Promise<{ sessionId: string }> }) {
   // Send any traces produced during this run once the response has finished.
   after(flushLangfuse);
@@ -145,6 +151,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ session
 
   // Rows to snapshot on the first request of a run; empty on a resume.
   let snapshot: (typeof studentResults.$inferInsert)[] = [];
+  // Stale submission records dropped by the collapse below, reported in the log.
+  let duplicates = 0;
   if (!resume) {
     let students, submissions;
     try {
@@ -162,7 +170,19 @@ export async function POST(req: Request, { params }: { params: Promise<{ session
     const targets = only.length
       ? submissions.filter((s) => only.includes(s.userId))
       : submissions.filter((s) => states.includes(s.state));
-    snapshot = targets.map((sub) => {
+    // Classroom can hand back more than one submission for the same student. One
+    // student is one row here, and Postgres refuses an upsert that would touch the
+    // same row twice, so collapse them first: only the newest is graded. Grading a
+    // superseded attempt would mark work the student has already replaced — and if
+    // that newest record turns out to carry no file, the student is reported as an
+    // error rather than quietly scored off a stale one.
+    const perStudent = new Map<string, Submission>();
+    for (const sub of targets) {
+      const prev = perStudent.get(sub.userId);
+      if (!prev || isNewer(sub, prev)) perStudent.set(sub.userId, sub);
+    }
+    duplicates = targets.length - perStudent.size;
+    snapshot = [...perStudent.values()].map((sub) => {
       const student = byUser.get(sub.userId);
       return {
         sessionId: gs.id,
@@ -197,6 +217,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ session
 
         // ---- Snapshot the Classroom roster into our own tables (first request only) ----
         if (snapshot.length) {
+          if (duplicates)
+            log(`Ignored ${duplicates} duplicate submission record(s) from Classroom.`);
           const ids = snapshot.map((r) => r.googleUserId);
           // Identity and attachment details are refreshed from Classroom; grading state
           // deliberately is not, so a student already graded stays graded.
