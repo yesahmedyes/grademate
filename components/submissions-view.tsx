@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import * as Dialog from "@radix-ui/react-dialog";
 import { FileText, Sparkles, X } from "lucide-react";
 import type { CourseWork, Student, Submission } from "@/lib/classroom";
 import { Avatar } from "@/components/avatar";
+import { LinkPending } from "@/components/link-pending";
 import { StatusPill } from "@/components/status-pill";
 
 type Props = {
@@ -23,14 +24,21 @@ function fmtDate(iso?: string) {
 }
 
 export function SubmissionsView({ courseId, work, students, submissions }: Props) {
-  const byUser = new Map(students.map((s) => [s.userId, s]));
   const [open, setOpen] = useState<Submission | null>(null);
 
-  const rows = submissions
-    .map((sub) => ({ sub, student: byUser.get(sub.userId) }))
-    .sort((a, b) =>
-      (a.student?.name ?? a.sub.userId).localeCompare(b.student?.name ?? b.sub.userId)
-    );
+  // Memoized so opening/closing the preview dialog doesn't rebuild the map and
+  // re-sort every row.
+  const byUser = useMemo(() => new Map(students.map((s) => [s.userId, s])), [students]);
+
+  const rows = useMemo(
+    () =>
+      submissions
+        .map((sub) => ({ sub, student: byUser.get(sub.userId) }))
+        .sort((a, b) =>
+          (a.student?.name ?? a.sub.userId).localeCompare(b.student?.name ?? b.sub.userId)
+        ),
+    [submissions, byUser]
+  );
 
   const openStudent = open ? byUser.get(open.userId) : null;
   const openFile = open?.attachments.find((a) => a.driveFileId);
@@ -144,7 +152,10 @@ export function SubmissionsView({ courseId, work, students, submissions }: Props
         href={`/classes/${courseId}/work/${work.id}/grade`}
         className="fixed bottom-8 right-8 z-40 inline-flex h-12 items-center gap-2 rounded-full bg-coral px-6 text-sm font-semibold text-white shadow-[0_10px_24px_-8px_rgba(233,124,82,0.7)] transition-colors hover:bg-coral-deep"
       >
-        <Sparkles size={17} /> Grade All
+        <LinkPending size={17}>
+          <Sparkles size={17} />
+        </LinkPending>{" "}
+        Grade All
       </Link>
     </>
   );

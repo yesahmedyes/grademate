@@ -44,8 +44,7 @@ export default async function LoginPage() {
           Grade<span className="font-semibold">Mate</span>
         </h1>
         <p className="mt-2 text-sm leading-relaxed text-faint">
-          AI-assisted grading for Google Classroom. Sign in with the Google account you teach with —
-          GradeMate only ever <span className="font-medium text-ink/70">reads</span> your classes.
+          AI-assisted grading for Google Classroom. Sign in with the Google account you teach with.
         </p>
 
         <form
@@ -80,10 +79,6 @@ export default async function LoginPage() {
             </button>
           </form>
         )}
-
-        <p className="mt-6 text-center text-xs text-faint">
-          Grades stay in GradeMate — nothing is written back to Classroom.
-        </p>
       </div>
     </div>
   );

@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { google } from "googleapis";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
@@ -9,8 +10,14 @@ export type GoogleAuthClient = InstanceType<typeof google.auth.OAuth2>;
  * Build an authorized OAuth2 client for a signed-in teacher.
  * googleapis auto-refreshes the access token from the refresh token when
  * expired; the "tokens" listener persists refreshed tokens back to the DB.
+ *
+ * Memoized per request: every ClassroomAPI method calls this, so without the
+ * cache a page listing N courses would read the accounts row N+1 times and
+ * attach N+1 duplicate "tokens" listeners.
  */
-export async function googleAuthFor(userId: string): Promise<GoogleAuthClient> {
+export const googleAuthFor = cache(async function googleAuthFor(
+  userId: string
+): Promise<GoogleAuthClient> {
   const account = await db.query.accounts.findFirst({
     where: and(eq(accounts.userId, userId), eq(accounts.provider, "google")),
   });
@@ -51,7 +58,7 @@ export async function googleAuthFor(userId: string): Promise<GoogleAuthClient> {
   });
 
   return client;
-}
+});
 
 export function classroomClient(auth: GoogleAuthClient) {
   return google.classroom({ version: "v1", auth });

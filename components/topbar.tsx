@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { ChevronDown, Search } from "lucide-react";
+import { refreshClassroom } from "@/app/(app)/actions";
 import { Avatar } from "@/components/avatar";
+import { RefreshButton } from "@/components/refresh-button";
 
 export function Topbar({ name, image }: { name: string; image?: string | null }) {
   return (
@@ -21,6 +23,7 @@ export function Topbar({ name, image }: { name: string; image?: string | null })
         <span className="hidden items-center gap-1 text-faint sm:flex whitespace-nowrap">
           Help <ChevronDown size={14} />
         </span>
+        <RefreshButton action={refreshClassroom} />
         <Avatar name={name} src={image} size={38} />
       </nav>
     </header>

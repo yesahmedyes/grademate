@@ -6,29 +6,32 @@ import { isStaleOcr } from "@/lib/ocr-job";
 
 export const dynamic = "force-dynamic";
 
-async function owned(id: string, userId: string) {
+async function owned(id: string, userId: string, withResults = true) {
   const gs = await db.query.gradingSessions.findFirst({
     where: eq(gradingSessions.id, id),
-    with: { results: true, files: true },
+    with: withResults ? { results: true, files: true } : { files: true },
   });
   return gs && gs.teacherId === userId ? gs : null;
 }
 
-export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session?.user) return Response.json({ error: "Unauthorized" }, { status: 401 });
-  const gs = await owned((await params).id, session.user.id);
+
+  // The wizard's OCR poll only needs `files`. Skipping the results relation keeps
+  // every graded student's feedback and per-criterion JSON off the wire.
+  const filesOnly = new URL(req.url).searchParams.get("fields") === "files";
+  const gs = await owned((await params).id, session.user.id, !filesOnly);
   if (!gs) return Response.json({ error: "Not found" }, { status: 404 });
-  // The wizard polls this every couple of seconds while OCR runs, so leave the
-  // transcripts out of the payload and don't report a dead job as still running.
-  return Response.json({
-    ...gs,
-    files: gs.files.map(({ markdown, ...f }) => ({
-      ...f,
-      hasMarkdown: Boolean(markdown?.trim()),
-      ocrStatus: isStaleOcr(f.ocrStatus, f.createdAt) ? "error" : f.ocrStatus,
-    })),
-  });
+
+  // Leave the transcripts out of the payload and don't report a dead job as
+  // still running.
+  const files = gs.files.map(({ markdown, ...f }) => ({
+    ...f,
+    hasMarkdown: Boolean(markdown?.trim()),
+    ocrStatus: isStaleOcr(f.ocrStatus, f.createdAt) ? "error" : f.ocrStatus,
+  }));
+  return Response.json(filesOnly ? { id: gs.id, files } : { ...gs, files });
 }
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {

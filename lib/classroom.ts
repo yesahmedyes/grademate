@@ -29,10 +29,20 @@ export type DownloadedFile = { buf: Buffer; mime: string; name: string };
 
 export interface ClassroomAPI {
   listCourses(): Promise<Course[]>;
+  /** Single course by id; null when it doesn't exist or isn't visible to this teacher. */
+  getCourse(courseId: string): Promise<Course | null>;
   listCourseWork(courseId: string): Promise<CourseWork[]>;
+  /** Single coursework item by id; null when it doesn't exist. */
+  getCourseWork(courseId: string, workId: string): Promise<CourseWork | null>;
   listStudents(courseId: string): Promise<Student[]>;
   listSubmissions(courseId: string, workId: string): Promise<Submission[]>;
   downloadFile(fileId: string): Promise<DownloadedFile>;
+}
+
+/** Google returns 404 for both "gone" and "not visible to you" — treat each as null. */
+function isNotFound(e: unknown): boolean {
+  return (e as { code?: number; status?: number })?.code === 404 ||
+    (e as { code?: number; status?: number })?.status === 404;
 }
 
 export function classroomFor(userId: string): ClassroomAPI {
@@ -40,6 +50,43 @@ export function classroomFor(userId: string): ClassroomAPI {
 }
 
 // ---------------- real ----------------
+
+/** Shape of a classroom_v1.Schema$CourseWork, narrowed to the fields we read. */
+type RawCourseWork = {
+  id?: string | null;
+  title?: string | null;
+  description?: string | null;
+  workType?: string | null;
+  maxPoints?: number | null;
+  dueDate?: { year?: number | null; month?: number | null; day?: number | null } | null;
+  materials?:
+    | {
+        driveFile?: { driveFile?: { id?: string | null; title?: string | null } | null } | null;
+        link?: { url?: string | null; title?: string | null } | null;
+      }[]
+    | null;
+};
+
+/** Shared by listCourseWork and getCourseWork so both produce identical shapes. */
+function toCourseWork(w: RawCourseWork): CourseWork | null {
+  if (!w.id || !w.title) return null;
+  const d = w.dueDate;
+  return {
+    id: w.id,
+    title: w.title,
+    description: w.description ?? undefined,
+    workType: w.workType ?? "ASSIGNMENT",
+    maxPoints: w.maxPoints ?? undefined,
+    dueDate: d
+      ? `${d.year}-${String(d.month).padStart(2, "0")}-${String(d.day).padStart(2, "0")}`
+      : undefined,
+    materials: (w.materials ?? []).map((m) => ({
+      driveFileId: m.driveFile?.driveFile?.id ?? undefined,
+      title: m.driveFile?.driveFile?.title ?? m.link?.title ?? undefined,
+      link: m.link?.url ?? undefined,
+    })),
+  };
+}
 
 class RealClassroom implements ClassroomAPI {
   constructor(private userId: string) {}
@@ -67,6 +114,19 @@ class RealClassroom implements ClassroomAPI {
     return out;
   }
 
+  /** Fetch one course instead of paging the whole list to find it. */
+  async getCourse(courseId: string): Promise<Course | null> {
+    const classroom = classroomClient(await this.auth());
+    try {
+      const { data: c } = await classroom.courses.get({ id: courseId });
+      if (!c.id || !c.name) return null;
+      return { id: c.id, name: c.name, section: c.section ?? undefined };
+    } catch (e) {
+      if (isNotFound(e)) return null;
+      throw e;
+    }
+  }
+
   async listCourseWork(courseId: string): Promise<CourseWork[]> {
     const classroom = classroomClient(await this.auth());
     const out: CourseWork[] = [];
@@ -79,27 +139,24 @@ class RealClassroom implements ClassroomAPI {
         orderBy: "dueDate desc",
       });
       for (const w of data.courseWork ?? []) {
-        if (!w.id || !w.title) continue;
-        const due = w.dueDate
-          ? `${w.dueDate.year}-${String(w.dueDate.month).padStart(2, "0")}-${String(w.dueDate.day).padStart(2, "0")}`
-          : undefined;
-        out.push({
-          id: w.id,
-          title: w.title,
-          description: w.description ?? undefined,
-          workType: w.workType ?? "ASSIGNMENT",
-          maxPoints: w.maxPoints ?? undefined,
-          dueDate: due,
-          materials: (w.materials ?? []).map((m) => ({
-            driveFileId: m.driveFile?.driveFile?.id ?? undefined,
-            title: m.driveFile?.driveFile?.title ?? m.link?.title ?? undefined,
-            link: m.link?.url ?? undefined,
-          })),
-        });
+        const mapped = toCourseWork(w);
+        if (mapped) out.push(mapped);
       }
       pageToken = data.nextPageToken ?? undefined;
     } while (pageToken);
     return out;
+  }
+
+  /** Fetch one coursework item instead of paging the whole list to find it. */
+  async getCourseWork(courseId: string, workId: string): Promise<CourseWork | null> {
+    const classroom = classroomClient(await this.auth());
+    try {
+      const { data } = await classroom.courses.courseWork.get({ courseId, id: workId });
+      return toCourseWork(data);
+    } catch (e) {
+      if (isNotFound(e)) return null;
+      throw e;
+    }
   }
 
   /**
@@ -185,8 +242,14 @@ class MockClassroom implements ClassroomAPI {
   async listCourses() {
     return mockCourses;
   }
+  async getCourse(courseId: string) {
+    return mockCourses.find((c) => c.id === courseId) ?? null;
+  }
   async listCourseWork(courseId: string) {
     return mockCourseWork[courseId] ?? [];
+  }
+  async getCourseWork(courseId: string, workId: string) {
+    return (mockCourseWork[courseId] ?? []).find((w) => w.id === workId) ?? null;
   }
   async listStudents() {
     return mockStudents.filter((s) => s.name?.trim() && s.email?.trim());

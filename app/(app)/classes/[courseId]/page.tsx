@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
@@ -8,8 +9,9 @@ import {
   Layers,
 } from "lucide-react";
 import { auth } from "@/lib/auth";
-import { classroomFor, type Submission } from "@/lib/classroom";
-import { ProgressBar } from "@/components/progress-bar";
+import { getCourse, listCourseWork } from "@/lib/classroom-cached";
+import { LinkPending } from "@/components/link-pending";
+import { WorkProgress, WorkProgressSkeleton } from "@/components/work-progress";
 import { ACCENTS, cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -33,22 +35,15 @@ export default async function ClassPage({
 }) {
   const { courseId } = await params;
   const session = (await auth())!;
-  const api = classroomFor(session.user.id);
+  const userId = session.user.id;
 
-  const courses = await api.listCourses();
-  const course = courses.find((c) => c.id === courseId);
+  // Only what the header and notFound() need — the per-assignment submission
+  // counts stream in via WorkProgress below.
+  const [course, works] = await Promise.all([
+    getCourse(userId, courseId),
+    listCourseWork(userId, courseId),
+  ]);
   if (!course) notFound();
-
-  const works = await api.listCourseWork(courseId);
-  const gradeable = works.filter((w) => GRADEABLE.has(w.workType));
-  const subLists = await Promise.allSettled(
-    gradeable.map((w) => api.listSubmissions(courseId, w.id)),
-  );
-  const subsFor = new Map<string, Submission[]>();
-  gradeable.forEach((w, i) => {
-    const r = subLists[i];
-    subsFor.set(w.id, r.status === "fulfilled" ? r.value : []);
-  });
 
   const [name0, ...nameRest] = course.name.split(" ");
 
@@ -78,10 +73,6 @@ export default async function ClassPage({
           {works.map((w, i) => {
             const Icon = workIcon(w.workType);
             const accent = ACCENTS[i % ACCENTS.length];
-            const subs = subsFor.get(w.id);
-            const turnedIn = (subs ?? []).filter(
-              (s) => s.state === "TURNED_IN" || s.state === "RETURNED",
-            ).length;
             const clickable = GRADEABLE.has(w.workType);
 
             const inner = (
@@ -109,24 +100,22 @@ export default async function ClassPage({
                     {w.dueDate && ` · due ${w.dueDate}`}
                   </p>
                 </div>
-                {subs && subs.length > 0 && (
-                  <div className="hidden w-56 shrink-0 md:block">
-                    <p className="mb-1 text-right text-[11px] text-faint">
-                      {turnedIn}/{subs.length} turned in
-                    </p>
-                    <ProgressBar
-                      value={turnedIn}
-                      total={subs.length}
+                {clickable && (
+                  <Suspense fallback={<WorkProgressSkeleton />}>
+                    <WorkProgress
+                      userId={userId}
+                      courseId={courseId}
+                      workId={w.id}
                       barClass={accent.bg}
-                      softClass="bg-panel"
                     />
-                  </div>
+                  </Suspense>
                 )}
                 {clickable && (
-                  <ChevronRight
-                    size={18}
-                    className="shrink-0 text-ink/30 group-hover:text-ink/60"
-                  />
+                  <span className="shrink-0 text-ink/30 group-hover:text-ink/60">
+                    <LinkPending size={18}>
+                      <ChevronRight size={18} />
+                    </LinkPending>
+                  </span>
                 )}
               </div>
             );

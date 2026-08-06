@@ -1,13 +1,15 @@
 import Link from "next/link";
 import { ArrowRight, BookOpen } from "lucide-react";
-import type { Course, Student } from "@/lib/classroom";
-import { Avatar } from "@/components/avatar";
+import type { Course } from "@/lib/classroom";
+import { LinkPending } from "@/components/link-pending";
 import { accentFor, cn } from "@/lib/utils";
 
-export function ClassCard({ course, students }: { course: Course; students: Student[] }) {
+/**
+ * Presentational only. The roster is passed in as a node so the caller can wrap
+ * it in Suspense and let it stream (see components/class-roster.tsx).
+ */
+export function ClassCard({ course, roster }: { course: Course; roster: React.ReactNode }) {
   const accent = accentFor(course.id);
-  const shown = students.slice(0, 4);
-  const extra = students.length - shown.length;
 
   return (
     <Link
@@ -22,22 +24,11 @@ export function ClassCard({ course, students }: { course: Course; students: Stud
       {course.section && <p className="mt-1 text-xs text-faint">{course.section}</p>}
 
       <div className="mt-5 flex items-center justify-between">
-        {shown.length > 0 ? (
-          <span className="flex items-center -space-x-2">
-            {shown.map((s) => (
-              <Avatar key={s.userId} name={s.name} src={s.photoUrl} size={28} />
-            ))}
-            {extra > 0 && (
-              <span className="z-10 flex h-7 w-7 items-center justify-center rounded-full bg-butter text-[10px] font-semibold text-navy ring-2 ring-white">
-                +{extra}
-              </span>
-            )}
-          </span>
-        ) : (
-          <span className="text-xs text-faint">No students yet</span>
-        )}
+        {roster}
         <span className="flex h-8 w-8 items-center justify-center rounded-full bg-panel text-ink/50 transition-colors group-hover:bg-coral group-hover:text-white">
-          <ArrowRight size={15} />
+          <LinkPending size={15}>
+            <ArrowRight size={15} />
+          </LinkPending>
         </span>
       </div>
     </Link>

@@ -1,5 +1,5 @@
 import { after } from "next/server";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, notInArray, sql } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { flushLangfuse } from "@/lib/langfuse";
@@ -153,6 +153,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ session
   let snapshot: (typeof studentResults.$inferInsert)[] = [];
   // Stale submission records dropped by the collapse below, reported in the log.
   let duplicates = 0;
+  // Submissions dropped because their student has left the course, likewise reported.
+  let offRoster = 0;
+  // The current roster; empty on a resume, where the run's students are read back
+  // out of our own tables instead of from Classroom.
+  let known = new Set<string>();
   if (!resume) {
     let students, submissions;
     try {
@@ -167,9 +172,19 @@ export async function POST(req: Request, { params }: { params: Promise<{ session
       );
     }
     const byUser = new Map(students.map((s) => [s.userId, s]));
+    known = new Set(byUser.keys());
+    // Classroom keeps a student's submissions after they leave the course, so the
+    // submission list runs ahead of the roster. Grading those spends OCR and model
+    // calls on people who are no longer in the class and files the result under a
+    // placeholder name, so keep a run to the students the teacher can actually see.
+    // A named re-grade is explicit and stays exempt.
+    const inState = submissions.filter((s) => states.includes(s.state));
     const targets = only.length
       ? submissions.filter((s) => only.includes(s.userId))
-      : submissions.filter((s) => states.includes(s.state));
+      : known.size
+        ? inState.filter((s) => known.has(s.userId))
+        : inState;
+    if (!only.length) offRoster = inState.length - targets.length;
     // Classroom can hand back more than one submission for the same student. One
     // student is one row here, and Postgres refuses an upsert that would touch the
     // same row twice, so collapse them first: only the newest is graded. Grading a
@@ -249,6 +264,26 @@ export async function POST(req: Request, { params }: { params: Promise<{ session
             );
         }
 
+        // A run abandoned part-way leaves its untouched students pending, and a resume
+        // trusts that queue without re-reading the roster. Clear anyone who is no longer
+        // on it while we still have it in hand — a pending row holds no grade to lose.
+        // Skipped for a named re-grade, which is exempt from the roster filter above and
+        // would otherwise delete the very row it just queued.
+        if (!resume && !only.length && known.size) {
+          const dropped = await db
+            .delete(studentResults)
+            .where(
+              and(
+                eq(studentResults.sessionId, gs.id),
+                eq(studentResults.state, "pending"),
+                notInArray(studentResults.googleUserId, [...known])
+              )
+            )
+            .returning({ id: studentResults.id });
+          if (dropped.length)
+            log(`Cleared ${dropped.length} queued submission(s) from students who have left the course.`);
+        }
+
         // ---- What's left to grade. Read from our own tables either way, so a batch
         // ---- never has to be told where the previous one stopped — it just asks.
         let pending: StudentResult[] = [];
@@ -292,6 +327,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ session
               ? `Re-grading ${pending.length} submission(s)…`
               : `Found ${snapshot.length} submission(s) in selected state${states.length > 1 ? "s" : ""} (${states.join(", ")}).`
           );
+          if (offRoster)
+            log(`↷ ${offRoster} submission(s) from students no longer on the roster — skipped.`);
           if (skipped) log(`↷ ${skipped} already graded — skipped (tick “re-grade” to redo).`);
         }
         log(

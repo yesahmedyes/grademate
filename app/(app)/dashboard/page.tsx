@@ -1,24 +1,23 @@
+import { Suspense } from "react";
 import { auth } from "@/lib/auth";
-import { classroomFor, type Student } from "@/lib/classroom";
+import { listCourses } from "@/lib/classroom-cached";
 import { ClassCard } from "@/components/class-card";
+import { ClassRoster } from "@/components/class-roster";
+import { AvatarStackSkeleton } from "@/components/skeleton";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const session = (await auth())!;
-  const api = classroomFor(session.user.id);
+  const userId = session.user.id;
 
   let error: string | null = null;
-  let courses: Awaited<ReturnType<typeof api.listCourses>> = [];
+  let courses: Awaited<ReturnType<typeof listCourses>> = [];
   try {
-    courses = await api.listCourses();
+    courses = await listCourses(userId);
   } catch (e) {
     error = e instanceof Error ? e.message : String(e);
   }
-
-  const rosters = await Promise.allSettled(courses.map((c) => api.listStudents(c.id)));
-  const studentsFor = (i: number): Student[] =>
-    rosters[i]?.status === "fulfilled" ? (rosters[i] as PromiseFulfilledResult<Student[]>).value : [];
 
   const first = (session.user.name ?? "there").split(" ")[0];
 
@@ -47,8 +46,18 @@ export default async function DashboardPage() {
         </div>
       ) : (
         <div className="mt-7 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-          {courses.map((c, i) => (
-            <ClassCard key={c.id} course={c} students={studentsFor(i)} />
+          {/* Cards paint as soon as the course list lands; the per-class roster
+              calls stream into their own boundaries instead of blocking the grid. */}
+          {courses.map((c) => (
+            <ClassCard
+              key={c.id}
+              course={c}
+              roster={
+                <Suspense fallback={<AvatarStackSkeleton />}>
+                  <ClassRoster userId={userId} courseId={c.id} />
+                </Suspense>
+              }
+            />
           ))}
         </div>
       )}
